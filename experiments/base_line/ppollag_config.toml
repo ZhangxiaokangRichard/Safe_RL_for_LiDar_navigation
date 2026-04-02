@@ -1,0 +1,30 @@
+# PPOLag 配置（有安全约束 Lagrangian 修正，对比组）
+# 与 PPO baseline 使用相同骨干超参数，新增拉格朗日安全约束
+
+[meta]
+algo = "PPOLag"
+description = "PPO with Lagrangian safety constraints — cost_limit=25"
+
+[environment]
+env_id = "SafetyCarGoal2-v0"   # Level 2 已编码在 ID 中
+
+[algorithm]
+learning_rate = 0.0003
+gamma = 0.99
+gae_lambda = 0.95
+clip_ratio = 0.2
+entropy_coef = 0.0
+
+[training]
+num_epochs = 100
+steps_per_epoch = 5000
+batch_size = 256
+save_freq = 10
+seed = 42
+
+[safety]
+# 拉格朗日安全约束核心参数
+cost_limit = 25.0                    # 每回合最大允许成本（累计折扣cost）
+lagrangian_multiplier_init = 0.001   # 拉格朗日乘子初始值
+lambda_lr = 0.035                    # 乘子更新学习率
+lambda_optimizer = "Adam"

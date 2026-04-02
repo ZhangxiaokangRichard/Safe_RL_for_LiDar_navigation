@@ -1,0 +1,24 @@
+# PPO Baseline 配置（无安全约束，参照组）
+# 与 runs/PPO-{SafetyCarGoal2-v0}/seed-042-... 使用相同超参数
+
+[meta]
+algo = "PPO"
+description = "Standard PPO without safety constraints — baseline reference"
+reference_run = "runs/PPO-{SafetyCarGoal2-v0}/seed-042-2026-04-03-03-37-24"
+
+[environment]
+env_id = "SafetyCarGoal2-v0"   # Level 2 已编码在 ID 中
+
+[algorithm]
+learning_rate = 0.0003
+gamma = 0.99
+gae_lambda = 0.95
+clip_ratio = 0.2
+entropy_coef = 0.0
+
+[training]
+num_epochs = 100
+steps_per_epoch = 5000
+batch_size = 256
+save_freq = 10
+seed = 42

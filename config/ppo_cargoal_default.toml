@@ -1,0 +1,47 @@
+# CarGoal Level 2 环境配置
+# 用于 OmniSafe PPO 算法训练和评估
+
+[environment]
+# 环境参数
+env_id = "SafetyCarGoal2-v0"
+level = 2  # 最高难度
+
+[algorithm]
+# PPO 算法超参数
+learning_rate = 0.0003
+gamma = 0.99
+gae_lambda = 0.95
+clip_ratio = 0.2
+entropy_coef = 0.0
+
+# 安全约束
+cost_limit = 1.0  # Safety constraints
+safety_weight = 1.0
+
+[training]
+# 训练配置
+num_epochs = 100
+steps_per_epoch = 5000
+batch_size = 256
+epochs_per_update = 3
+
+# 保存和记录
+save_freq = 10  # 每 N 个 epoch 保存一次
+log_freq = 1
+
+# 随机种子 (使用 0 表示随机)
+seed = 0
+
+[rendering]
+# 可视化参数
+render_mode = "rgb_array"
+render_freq = 100  # 每 N 步渲染一次
+fps = 30
+width = 640
+height = 480
+
+[evaluation]
+# 评估参数
+eval_episodes = 10
+eval_max_steps = 500
+record_best_episodes = true

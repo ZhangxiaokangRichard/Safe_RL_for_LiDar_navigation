@@ -1,0 +1,18 @@
+# 核心强化学习与安全环境库 (指定最新稳定版)
+omnisafe==0.5.0
+
+# 物理引擎与环境接口 (放宽版本限制，让 omnisafe 自动匹配兼容版本)
+safety-gymnasium
+gymnasium
+mujoco
+
+# 日志与可视化工具
+tensorboard
+matplotlib
+
+# TOML配置文件解析库
+tomli >= 1.1.0  # For Python < 3.11 (3.11+ has built-in tomllib)
+
+# 视频录制库
+imageio >= 2.9.0
+

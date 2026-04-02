@@ -1,0 +1,36 @@
+# 高质量评估配置
+# 用于生成高分辨率演示视频
+
+[environment]
+env_id = "SafetyCarGoal2-v0"
+level = 2
+
+[algorithm]
+learning_rate = 0.0003
+gamma = 0.99
+gae_lambda = 0.95
+clip_ratio = 0.2
+entropy_coef = 0.0
+cost_limit = 1.0
+safety_weight = 1.0
+
+[training]
+num_epochs = 50  # 更少的训练轮次用于快速评估
+steps_per_epoch = 5000
+batch_size = 256
+epochs_per_update = 3
+save_freq = 10
+log_freq = 1
+
+[rendering]
+# 高质量配置
+render_mode = "rgb_array"
+render_freq = 50
+fps = 60  # 更高帧率
+width = 1280
+height = 960
+
+[evaluation]
+eval_episodes = 20
+eval_max_steps = 500
+record_best_episodes = true
