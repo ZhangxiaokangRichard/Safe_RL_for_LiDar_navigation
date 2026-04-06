@@ -1,0 +1,11 @@
+{
+    "reward_mean": 27.654335246606557,
+    "reward_std": 1.7779089523913623,
+    "reward_min": 23.724129343656386,
+    "reward_max": 30.990020292756526,
+    "cost_mean": 60.5,
+    "cost_std": 47.4410160093563,
+    "cost_min": 0.0,
+    "cost_max": 135.0,
+    "zero_cost_rate": 0.2
+}

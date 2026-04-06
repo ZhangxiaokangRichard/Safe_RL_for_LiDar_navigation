@@ -1,0 +1,24 @@
+# PPO Baseline 配置 — SafetyButtonGoal1-v0
+# 对应 doc/ch3_03.md 中的实验一（无安全约束基准）
+# 任务含 Gremlins 动态障碍物，训练时长增至 300 epochs
+
+[meta]
+algo = "PPO"
+description = "Standard PPO without safety constraints on ButtonGoal1 (Gremlins environment)"
+
+[environment]
+env_id = "SafetyButtonGoal1-v0"
+
+[algorithm]
+learning_rate  = 0.0003   # Actor/Critic 共享学习率
+gamma          = 0.99     # 折扣因子
+gae_lambda     = 0.95     # GAE λ
+clip_ratio     = 0.2      # PPO clip ε
+entropy_coef   = 0.01     # Button 任务探索更难，略微提高熵系数
+
+[training]
+num_epochs     = 300      # CarGoal 用 100，Button 更难，需 300+ epochs
+steps_per_epoch = 5000    # 每 epoch 300 个回合（1000步/回合）
+batch_size     = 256
+save_freq      = 20       # 每 20 epoch 保存一次（节省磁盘，总保 15 个检查点）
+seed           = 42

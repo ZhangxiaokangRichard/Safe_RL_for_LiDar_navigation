@@ -1,0 +1,34 @@
+# PPOLag 配置 — SafetyButtonGoal1-v0
+# 对应 doc/ch3_03.md 中的实验二（拉格朗日安全约束基准）
+# 三类代价（Hazard + Gremlin + Button误触）共享同一 cost_limit
+
+[meta]
+algo = "PPOLag"
+description = "PPO with Lagrangian safety constraints on ButtonGoal1 (Gremlins, 3-type cost)"
+
+[environment]
+env_id = "SafetyButtonGoal1-v0"
+
+[algorithm]
+learning_rate  = 0.0003
+gamma          = 0.99
+gae_lambda     = 0.95
+clip_ratio     = 0.2
+entropy_coef   = 0.01     # 与 PPO 保持一致，便于对比
+
+[training]
+num_epochs      = 300
+steps_per_epoch = 5000
+batch_size      = 256
+save_freq       = 20
+seed            = 42
+
+[safety]
+# 安全约束参数
+# ButtonGoal1 有 3 种独立二值代价（Hazard/Gremlin/Button），
+# cost_sum 上限约为理论最大值 3×1000=3000，但实际回合代价远低于此。
+# 设 cost_limit=25 与 CarGoal 保持一致，便于跨任务比较安全性能。
+cost_limit                  = 25.0    # 每回合折扣代价期望上限 J_C(π) ≤ 25
+lagrangian_multiplier_init  = 0.001   # 拉格朗日乘子初始值（应远小于 1）
+lambda_lr                   = 0.035   # 乘子更新步长
+lambda_optimizer            = "Adam"
