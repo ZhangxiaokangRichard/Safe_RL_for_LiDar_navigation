@@ -1,4 +1,4 @@
-"""OmniSafe training script for CarGoal Level 2 — supports PPO and safety variants."""
+"""OmniSafe training script — supports PPO and safety variants on any safety-gymnasium environment."""
 
 import sys
 import random
@@ -74,7 +74,7 @@ def build_custom_cfgs(config: dict, algo: str, device: str, seed: int) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Train an OmniSafe RL agent on SafetyCarGoal2-v0"
+        description="Train an OmniSafe RL agent (algorithm and environment set via config)"
     )
     parser.add_argument(
         "--config",

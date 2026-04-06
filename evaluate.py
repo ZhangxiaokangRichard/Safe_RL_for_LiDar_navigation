@@ -1,4 +1,4 @@
-"""Evaluate and record a trained OmniSafe PPO agent on SafetyCarGoal2-v0."""
+"""Evaluate and record a trained OmniSafe agent on any safety-gymnasium environment."""
 
 import os
 import sys
@@ -19,7 +19,7 @@ def find_latest_model(torch_save_dir: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Evaluate a trained OmniSafe PPO agent on SafetyCarGoal2-v0"
+        description="Evaluate a trained OmniSafe agent on any safety-gymnasium environment"
     )
     parser.add_argument(
         "--exp-dir",
@@ -43,7 +43,7 @@ def main() -> None:
         "--record-episodes",
         type=int,
         default=3,
-        help="How many episodes to record as video (first N episodes)",
+        help="How many episodes to record as video (N independent render episodes)",
     )
     parser.add_argument(
         "--width",
@@ -78,11 +78,11 @@ def main() -> None:
     video_dir.mkdir(exist_ok=True)
 
     print("=" * 60)
-    print("OmniSafe PPO Evaluation — SafetyCarGoal2-v0")
+    print("OmniSafe Evaluation")
     print("=" * 60)
     print(f"Experiment : {args.exp_dir}")
     print(f"Model      : {model_name}")
-    print(f"Episodes   : {args.num_episodes}  (record first {args.record_episodes})")
+    print(f"Episodes   : {args.num_episodes}  (record {args.record_episodes})")
     print(f"Resolution : {args.width}x{args.height}")
     print(f"Video dir  : {video_dir}")
     print("=" * 60)

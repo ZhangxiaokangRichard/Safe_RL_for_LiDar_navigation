@@ -1,13 +1,13 @@
-# PPOLag 配置 — SafetyButtonGoal1-v0
+# PPOLag 配置 — SafetyCarButton1-v0
 # 对应 doc/ch3_03.md 中的实验二（拉格朗日安全约束基准）
 # 三类代价（Hazard + Gremlin + Button误触）共享同一 cost_limit
 
 [meta]
 algo = "PPOLag"
-description = "PPO with Lagrangian safety constraints on ButtonGoal1 (Gremlins, 3-type cost)"
+description = "PPO with Lagrangian safety constraints on CarButton1 (Gremlins, 3-type cost)"
 
 [environment]
-env_id = "SafetyButtonGoal1-v0"
+env_id = "SafetyCarButton1-v0"
 
 [algorithm]
 learning_rate  = 0.0003
