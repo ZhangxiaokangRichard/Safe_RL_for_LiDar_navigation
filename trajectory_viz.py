@@ -127,6 +127,7 @@ def run_episodes(
     model_name: str,
     target_env: str,
     num_episodes: int,
+    boundary_penalty: float = 1.0,
 ) -> list[dict]:
     """Load model with OmniSafe Evaluator and collect trajectory data.
 
@@ -170,6 +171,7 @@ def run_episodes(
             "agent_xy": [],
             "costs": [],
             "rewards": [],
+            "boundary_flags": [],   # True when agent position exceeds arena bounds
             "goal_xy": [],
             "hazard_xy": None,
             "vase_xy": None,
@@ -206,6 +208,10 @@ def run_episodes(
             agent_pos = np.asarray(task.agent.pos[:2]).copy()
             traj["agent_xy"].append(agent_pos)
 
+            # Boundary violation: agent outside arena extent
+            out_of_bounds = bool(np.any(np.abs(agent_pos) > meta["extent"]))
+            traj["boundary_flags"].append(out_of_bounds)
+
             # Goal position (task.goal is the Goal geom)
             goal_obj = getattr(task, "goal", None)
             if goal_obj is not None:
@@ -222,20 +228,25 @@ def run_episodes(
 
             # step() expects a torch.Tensor; do NOT convert to numpy
             obs, rew, cost, terminated, truncated, _ = inner_env.step(act)
-            traj["costs"].append(float(cost))
+            # Apply boundary penalty to cost for this step
+            augmented_cost = float(cost) + (boundary_penalty if out_of_bounds else 0.0)
+            traj["costs"].append(augmented_cost)
             traj["rewards"].append(float(rew))
             done = bool(terminated) or bool(truncated)
 
-        traj["agent_xy"] = np.array(traj["agent_xy"])          # (T, 2)
+        traj["agent_xy"]       = np.array(traj["agent_xy"])          # (T, 2)
+        traj["boundary_flags"] = np.array(traj["boundary_flags"])    # (T,) bool
         traj["goal_xy"]  = (np.array(traj["goal_xy"])
                             if traj["goal_xy"] else np.zeros((0, 2)))
-        traj["total_reward"] = float(np.sum(traj["rewards"]))
-        traj["total_cost"]   = float(np.sum(traj["costs"]))
+        traj["total_reward"]    = float(np.sum(traj["rewards"]))
+        traj["total_cost"]      = float(np.sum(traj["costs"]))
+        traj["boundary_steps"]  = int(np.sum(traj["boundary_flags"]))
         episodes.append(traj)
 
         cost_flag = "0-cost" if traj["total_cost"] == 0 else f"cost={traj['total_cost']:.0f}"
+        oob_tag   = f"  oob={traj['boundary_steps']}st" if traj["boundary_steps"] > 0 else ""
         print(f"  [ep {ep+1:>2}/{num_episodes}]  "
-              f"reward={traj['total_reward']:7.2f}  {cost_flag}")
+              f"reward={traj['total_reward']:7.2f}  {cost_flag}{oob_tag}")
 
     return episodes
 
@@ -316,6 +327,14 @@ def plot_trajectory(traj: dict, out_path: Path, algo: str = "") -> None:
     ax.plot(*xy[-1], "r^", ms=9, zorder=8,
             markeredgecolor="#550000", markeredgewidth=0.8, label="End")
 
+    # ── Out-of-bounds markers ─────────────────────────────────────────────── #
+    bf = traj.get("boundary_flags")
+    if bf is not None and np.any(bf):
+        oob_xy = xy[bf]
+        ax.scatter(oob_xy[:, 0], oob_xy[:, 1],
+                   c="#dd00dd", s=22, marker="x", linewidths=1.4,
+                   zorder=11, alpha=0.85)
+
     # ── Legend ────────────────────────────────────────────────────────────── #
     proxies = [
         mpatches.Patch(color="#e63030", alpha=0.5,  label=f"Hazard r={meta['haz_r']}m"),
@@ -329,6 +348,11 @@ def plot_trajectory(traj: dict, out_path: Path, algo: str = "") -> None:
         ]
     elif traj["vase_xy"] is not None:
         proxies.append(mpatches.Patch(color="#888", alpha=0.5, label="Vases"))
+
+    oob_steps = traj.get("boundary_steps", 0)
+    if oob_steps > 0:
+        proxies.append(mpatches.Patch(color="#dd00dd", alpha=0.8,
+                                      label=f"Out-of-bounds ({oob_steps} steps)"))
 
     ax.legend(handles=proxies, loc="upper right", fontsize=7,
               framealpha=0.85, edgecolor="#ccc")
@@ -431,6 +455,8 @@ def main() -> None:
                         help="Also save a trajectory overlay of all episodes")
     parser.add_argument("--out-dir", type=Path, default=None,
                         help="Output directory (default: <exp-dir>/trajectories/)")
+    parser.add_argument("--boundary-penalty", type=float, default=1.0,
+                        help="Extra cost per out-of-bounds step (default: 1.0; 0 = track only)")
     args = parser.parse_args()
 
     if not args.exp_dir.exists():
@@ -449,12 +475,14 @@ def main() -> None:
 
         print("=" * 60)
         print(f"Trajectory Visualizer — {algo} on {target_env}")
-        print(f"  Model    : {model_name}")
-        print(f"  Episodes : {args.num_episodes}")
-        print(f"  Output   : {out_dir}")
+        print(f"  Model           : {model_name}")
+        print(f"  Episodes        : {args.num_episodes}")
+        print(f"  Boundary penalty: {args.boundary_penalty} per out-of-bounds step")
+        print(f"  Output          : {out_dir}")
         print("=" * 60)
 
-        episodes = run_episodes(work_dir, model_name, target_env, args.num_episodes)
+        episodes = run_episodes(work_dir, model_name, target_env, args.num_episodes,
+                                boundary_penalty=args.boundary_penalty)
 
         # ── Per-episode plots ─────────────────────────────────────────────── #
         if args.best_only:
@@ -474,13 +502,19 @@ def main() -> None:
                 episodes, out_dir / "trajectory_overlay.png", algo=algo)
 
         # ── Stats summary ─────────────────────────────────────────────────── #
-        rewards = [e["total_reward"] for e in episodes]
-        costs   = [e["total_cost"]   for e in episodes]
+        rewards     = [e["total_reward"]   for e in episodes]
+        costs       = [e["total_cost"]     for e in episodes]
+        oob_steps   = [e.get("boundary_steps", 0) for e in episodes]
+        total_steps = sum(len(e["agent_xy"]) for e in episodes)
         print("\n── Summary ──────────────────────────────────────────────────")
         print(f"  Reward  mean={np.mean(rewards):7.2f}  std={np.std(rewards):6.2f}  "
               f"min={np.min(rewards):7.2f}  max={np.max(rewards):7.2f}")
         print(f"  Cost    mean={np.mean(costs):7.2f}  std={np.std(costs):6.2f}  "
               f"zero-cost={100*np.mean(np.array(costs)==0):.0f}%")
+        total_oob = sum(oob_steps)
+        print(f"  Out-of-bounds: {total_oob} steps total  "
+              f"({100*total_oob/max(total_steps,1):.1f}% of all steps)  "
+              f"penalty={args.boundary_penalty}/step")
         print(f"\nTrajectory images saved to: {out_dir.resolve()}")
 
     finally:

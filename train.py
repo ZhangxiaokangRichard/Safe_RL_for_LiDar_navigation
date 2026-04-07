@@ -24,6 +24,51 @@ except ImportError:
 LAGRANGIAN_ALGOS = {"PPOLag", "TRPOLag", "CPPOPID", "TRPOPID"}
 
 
+def _patch_task_classes(extra_goal_reward: float, boundary_cost: float) -> None:
+    """Monkey-patch safety-gymnasium task classes to inject env tuning.
+
+    - extra_goal_reward: bonus added to reward each time goal is reached
+    - boundary_cost:     extra cost per step when agent exits arena bounds
+    """
+    if extra_goal_reward != 0.0:
+        try:
+            from safety_gymnasium.tasks.safe_navigation.goal.goal_level0 import GoalLevel0
+            _orig_goal_reward = GoalLevel0.calculate_reward
+
+            def _patched_goal_reward(self):
+                reward = _orig_goal_reward(self)
+                if getattr(self, "goal_achieved", False):
+                    reward += extra_goal_reward
+                return reward
+
+            GoalLevel0.calculate_reward = _patched_goal_reward
+            print(f"  [patch] extra_goal_reward = +{extra_goal_reward} on each goal reached")
+        except ImportError:
+            print("  [warn] GoalLevel0 not found — extra_goal_reward patch skipped")
+
+    if boundary_cost != 0.0:
+        try:
+            from safety_gymnasium.bases.base_task import BaseTask
+            _orig_cost = BaseTask.calculate_cost
+
+            def _patched_cost(self):
+                cost = _orig_cost(self)
+                try:
+                    ext = self.placements_conf.extents[2]  # xmax (symmetric)
+                    pos = self.agent.pos[:2]
+                    if abs(float(pos[0])) > ext or abs(float(pos[1])) > ext:
+                        cost["cost_boundary"] = boundary_cost
+                        cost["cost_sum"] = cost.get("cost_sum", 0.0) + boundary_cost
+                except Exception:
+                    pass
+                return cost
+
+            BaseTask.calculate_cost = _patched_cost
+            print(f"  [patch] boundary_cost = +{boundary_cost} per step outside arena")
+        except ImportError:
+            print("  [warn] BaseTask not found — boundary_cost patch skipped")
+
+
 def load_config(config_path: Path) -> dict:
     with open(config_path, "rb") as f:
         return tomllib.load(f)
@@ -141,9 +186,20 @@ def main() -> None:
     if algo in LAGRANGIAN_ALGOS:
         cl = config.get("safety", {}).get("cost_limit", 25.0)
         print(f"Cost limit:      {cl}  (Lagrangian constraint)")
+    env_tuning = config.get("env_tuning", {})
+    extra_goal_reward = float(env_tuning.get("extra_goal_reward", 0.0))
+    boundary_cost = float(env_tuning.get("boundary_cost", 0.0))
+    if extra_goal_reward != 0.0 or boundary_cost != 0.0:
+        print(f"Env tuning:      extra_goal_reward={extra_goal_reward}  boundary_cost={boundary_cost}")
     print("=" * 65 + "\n")
 
     custom_cfgs = build_custom_cfgs(config, algo, args.device, seed)
+
+    # Apply env-level monkey-patches before agent (and its env) is created
+    if extra_goal_reward != 0.0 or boundary_cost != 0.0:
+        print("Applying env tuning patches...")
+        _patch_task_classes(extra_goal_reward, boundary_cost)
+        print()
 
     print(f"Initializing {algo} agent...")
     agent = omnisafe.Agent(algo, env_id=env_id, custom_cfgs=custom_cfgs)

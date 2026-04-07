@@ -1,0 +1,38 @@
+# PPOLag v2 配置 — SafetyCarGoal2-v0
+# 改进：放宽约束（避免 λ 过高导致策略过保守）+ 环境增益调整
+# 对比：ppollag_config.toml (v1: cost_limit=25, lambda_lr=0.035, entropy=0)
+
+[meta]
+algo = "PPOLag"
+description = "PPOLag v2 on CarGoal2: relaxed cost_limit, lower lambda_lr, boundary penalty, bonus goal reward"
+
+[environment]
+env_id = "SafetyCarGoal2-v0"
+
+[algorithm]
+learning_rate  = 0.0003
+gamma          = 0.99
+gae_lambda     = 0.95
+clip_ratio     = 0.2
+entropy_coef   = 0.02    # v1=0.0 → v2=0.02，鼓励探索，防止策略坍缩为 aimless wander
+
+[training]
+num_epochs      = 100
+steps_per_epoch = 5000
+batch_size      = 256
+save_freq       = 10
+seed            = 42
+
+[safety]
+# 拉格朗日安全约束（已放宽）
+# v1: cost_limit=25, lambda_lr=0.035 → λ 激增导致策略超保守
+# v2: cost_limit=40 → 允许适量代价以完成任务；lambda_lr=0.01 → 乘子更新更平稳
+cost_limit                  = 40.0   # v1=25 → v2=40，防止过约束
+lagrangian_multiplier_init  = 0.001  # 初始值保持小，让策略先收敛
+lambda_lr                   = 0.01   # v1=0.035 → v2=0.01，平缓乘子更新
+lambda_optimizer            = "Adam"
+
+[env_tuning]
+# 环境级增益调整（monkey-patch 方式注入，不修改策略权重）
+extra_goal_reward = 1.0   # 每次到达目标额外奖励 +1（默认 goal.reward_goal=1，此选项再增加 1）
+boundary_cost     = 1.0   # 每步出界额外代价 +1，与 Lagrangian 约束协同驱动边界内行驶

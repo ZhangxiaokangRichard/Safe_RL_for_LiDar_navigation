@@ -1,0 +1,38 @@
+# PPOLag v2 配置 — SafetyCarButton1-v0
+# 改进：放宽约束 + 降低乘子更新速率 + 边界惩罚
+# 对比：ppolag_button_config.toml (v1: cost_limit=25, lambda_lr=0.035, entropy=0.01)
+
+[meta]
+algo = "PPOLag"
+description = "PPOLag v2 on CarButton1: relaxed cost_limit, lower lambda_lr, boundary penalty"
+
+[environment]
+env_id = "SafetyCarButton1-v0"
+
+[algorithm]
+learning_rate  = 0.0003
+gamma          = 0.99
+gae_lambda     = 0.95
+clip_ratio     = 0.2
+entropy_coef   = 0.02    # v1=0.01 → v2=0.02，Button 任务探索更难，提高熵系数
+
+[training]
+num_epochs      = 300
+steps_per_epoch = 5000
+batch_size      = 256
+save_freq       = 20
+seed            = 42
+
+[safety]
+# 拉格朗日安全约束（已放宽，防止过保守）
+# v1: cost_limit=25, lambda_lr=0.035 → 25.6% 出界率，avg_reward=0.21
+# v2: cost_limit=40, lambda_lr=0.01 → 策略更稳定，配合边界惩罚
+cost_limit                  = 40.0   # Button 有 Hazard+Gremlin+Button 三类代价，略松约束
+lagrangian_multiplier_init  = 0.001
+lambda_lr                   = 0.01   # v1=0.035 → v2=0.01
+lambda_optimizer            = "Adam"
+
+[env_tuning]
+# 环境级增益调整（monkey-patch 注入，Button 任务无 Goal 障碍，extra_goal_reward=0）
+extra_goal_reward = 0.0   # CarButton1 不是 Goal 任务，保持 0
+boundary_cost     = 1.0   # 每步出界额外代价 +1，与 Lagrangian 协同驱动边界内行驶
